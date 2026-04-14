@@ -530,9 +530,9 @@ const JobTicketForm: React.FC<JobTicketFormProps> = ({ ticket, customers, onSave
     colorMode: ticket?.colorMode || 'BlackWhite',
     sides: ticket?.sides || 'Single',
     unitPrice: ticket?.unitPrice || 2.00,
+    totalOverride: ticket?.total || 0,
     dueDate: ticket?.dueDate?.split('T')[0] || '',
     dueTime: ticket?.dueTime || '',
-    finishing: ticket?.finishing || { staple: false, fold: false, collate: false, trim: false, punch: false, bindingType: 'None', lamination: false },
     notes: ticket?.notes || '',
     operatorName: ticket?.operatorName || '',
     machineName: ticket?.machineName || '',
@@ -584,32 +584,12 @@ const JobTicketForm: React.FC<JobTicketFormProps> = ({ ticket, customers, onSave
     else if (formData.priority === 'Express') rushFee = subtotal * 0.50;
     else if (formData.priority === 'Urgent') rushFee = subtotal * 1.00;
     
-    let finishingCost = 0;
-    if (formData.finishing.staple) finishingCost += formData.quantity * 0.50;
-    if (formData.finishing.fold) finishingCost += formData.quantity * 0.25;
-    if (formData.finishing.collate) finishingCost += formData.quantity * 0.20;
-    if (formData.finishing.lamination) finishingCost += formData.quantity * 1.50;
-    if (formData.finishing.bindingType && formData.finishing.bindingType !== 'None') {
-      if (formData.finishing.bindingType === 'Spiral') finishingCost += formData.quantity * 2.00;
-      else if (formData.finishing.bindingType === 'Perfect') finishingCost += formData.quantity * 5.00;
-      else if (formData.finishing.bindingType === 'Wire') finishingCost += formData.quantity * 3.00;
-      else if (formData.finishing.bindingType === 'Tape') finishingCost += formData.quantity * 1.50;
-    }
+    const afterRush = subtotal + rushFee;
+    const hasCustomTotal = formData.totalOverride > 0;
+    const finalTotal = hasCustomTotal ? formData.totalOverride : afterRush;
     
-    const afterRushAndFinishing = subtotal + rushFee + finishingCost;
-    const discountTiers = [
-      { min: 1, max: 99, discount: 0 },
-      { min: 100, max: 499, discount: 10 },
-      { min: 500, max: 999, discount: 15 },
-      { min: 1000, max: Infinity, discount: 20 },
-    ];
-    const discount = discountTiers.find(d => formData.quantity >= d.min && formData.quantity <= d.max);
-    const discountAmount = afterRushAndFinishing * ((discount?.discount || 0) / 100);
-    const afterDiscount = afterRushAndFinishing - discountAmount;
-    const tax = afterDiscount * 0.15;
-    
-    return { subtotal, rushFee, finishingCost, discount: discountAmount, tax, total: afterDiscount + tax };
-  }, [formData]);
+    return { subtotal, rushFee, total: finalTotal };
+  }, [formData.quantity, formData.unitPrice, formData.priority, formData.totalOverride]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -809,44 +789,6 @@ const JobTicketForm: React.FC<JobTicketFormProps> = ({ ticket, customers, onSave
           </div>
 
           <div className="space-y-3">
-            <h3 className="text-sm font-bold text-slate-600 uppercase">Finishing Options</h3>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { key: 'staple', label: 'Staple' },
-                { key: 'fold', label: 'Fold' },
-                { key: 'collate', label: 'Collate' },
-                { key: 'trim', label: 'Trim' },
-                { key: 'punch', label: 'Punch' },
-                { key: 'lamination', label: 'Lamination' },
-              ].map(({ key, label }) => (
-                <label key={key} className="flex items-center gap-2 p-2 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50">
-                  <input
-                    type="checkbox"
-                    checked={!!formData.finishing[key as keyof typeof formData.finishing]}
-                    onChange={(e) => setFormData({ ...formData, finishing: { ...formData.finishing, [key]: e.target.checked } })}
-                    className="rounded text-blue-600"
-                  />
-                  <span className="text-sm">{label}</span>
-                </label>
-              ))}
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Binding Type</label>
-              <select
-                value={formData.finishing.bindingType || 'None'}
-                onChange={(e) => setFormData({ ...formData, finishing: { ...formData.finishing, bindingType: e.target.value as any } })}
-                className="w-full p-2 border border-slate-200 rounded-lg focus:border-blue-500 outline-none"
-              >
-                <option value="None">None</option>
-                <option value="Spiral">Spiral Binding</option>
-                <option value="Perfect">Perfect Binding</option>
-                <option value="Wire">Wire Binding</option>
-                <option value="Tape">Tape Binding</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="space-y-3">
             <h3 className="text-sm font-bold text-slate-600 uppercase">Due Date</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -884,9 +826,16 @@ const JobTicketForm: React.FC<JobTicketFormProps> = ({ ticket, customers, onSave
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
             <div className="flex justify-between text-sm"><span>Subtotal</span><span>{currency}{totalPreview.subtotal.toFixed(2)}</span></div>
             {totalPreview.rushFee > 0 && <div className="flex justify-between text-sm text-orange-600"><span>Rush Fee</span><span>+{currency}{totalPreview.rushFee.toFixed(2)}</span></div>}
-            {totalPreview.finishingCost > 0 && <div className="flex justify-between text-sm"><span>Finishing</span><span>+{currency}{totalPreview.finishingCost.toFixed(2)}</span></div>}
-            {totalPreview.discount > 0 && <div className="flex justify-between text-sm text-emerald-600"><span>Bulk Discount</span><span>-{currency}{totalPreview.discount.toFixed(2)}</span></div>}
-            <div className="flex justify-between text-sm"><span>Tax (15%)</span><span>{currency}{totalPreview.tax.toFixed(2)}</span></div>
+            <div className="pt-2 border-t border-slate-200">
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Override Total</label>
+              <input
+                type="number"
+                value={formData.totalOverride || ''}
+                onChange={(e) => setFormData({ ...formData, totalOverride: parseFloat(e.target.value) || 0 })}
+                className="w-full p-2 border border-slate-200 rounded-lg focus:border-blue-500 outline-none text-right font-bold"
+                placeholder="Auto-calculated"
+              />
+            </div>
             <div className="flex justify-between font-bold text-lg pt-2 border-t border-slate-200">
               <span>Total</span>
               <span className="text-blue-600">{currency}{totalPreview.total.toFixed(2)}</span>

@@ -55,7 +55,7 @@ const createAuditLog = (params: {
 
 const getLockId = (sourceType: SourceType, sourceId: string) => `CONV-${sourceType}-${sourceId}`;
 
-const mergeBatchSnapshot = (storedBatch: any, hydratedBatch: any) => {
+const mergeBatchSnapshot = async (storedBatch: any, hydratedBatch: any) => {
   if (!storedBatch && !hydratedBatch) return null;
 
   const merged = {
@@ -67,9 +67,24 @@ const mergeBatchSnapshot = (storedBatch: any, hydratedBatch: any) => {
     : null;
   const storedClasses = Array.isArray(storedBatch?.classes) ? storedBatch.classes : [];
 
+  let customerName = merged.customer_name || merged.school_name || merged.name;
+  
+  if (!customerName && merged.school_id) {
+    try {
+      const customers = await dbService.getAll('customers');
+      const customer = customers.find((c: any) => String(c.id) === String(merged.school_id));
+      if (customer) {
+        customerName = customer.name;
+      }
+    } catch (e) {
+      console.warn('[jobTicketConversionService] Could not look up customer:', e);
+    }
+  }
+
   return {
     ...merged,
-    classes: hydratedClasses || storedClasses
+    classes: hydratedClasses || storedClasses,
+    customer_name: customerName
   };
 };
 
@@ -399,7 +414,7 @@ const convertExaminationBatchToJobTicket = async (batchId: string, options: Conv
       const idempotencyStore = tx.objectStore('idempotencyKeys');
 
       const storedBatch = await batchStore.get(batchId);
-      const batch = mergeBatchSnapshot(storedBatch, hydratedBatch);
+      const batch = await mergeBatchSnapshot(storedBatch, hydratedBatch);
       if (!batch) {
         throw new Error('Examination batch not found');
       }

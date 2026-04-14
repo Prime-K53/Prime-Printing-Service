@@ -126,19 +126,8 @@ export const customerNotificationService = {
 
     const message = generateMessageFromTemplate(type, data, config);
 
-    const logEntryBase: Omit<NotificationLog, 'status'> = {
-      id: `NOTIF-LOG-${Date.now()}`,
-      type,
-      entityId: data.id,
-      customerName: data.customerName,
-      phoneNumber: data.phoneNumber,
-      message,
-      timestamp: new Date().toISOString()
-    };
-
-    const shouldSend = window.confirm(
-      `Send ${ACTIVITY_LABELS[type]} notification to ${data.customerName} now?\n\n${message}`
-    );
+    // Auto-send when notifications are enabled (no manual confirmation needed)
+    const shouldSend = true;
 
     if (!shouldSend) {
       await dbService.put('customerNotificationLogs', {

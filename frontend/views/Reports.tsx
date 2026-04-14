@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import {
     Activity, Filter, Printer, X,
-    Users, BarChart3, Receipt, ShieldCheck
+    Users, BarChart3, Receipt, ShieldCheck, PieChart as PieChartIcon, Sparkles
 } from 'lucide-react';
 import MarginPerformancePage from './reports/MarginPerformance';
 import { useData } from '../context/DataContext';
@@ -13,6 +13,7 @@ import RevenueDashboard from './reports/RevenueDashboard';
 import ClientLedger from './reports/ClientLedger';
 import InternalAuditor from './reports/InternalAuditor';
 import RoundingAnalytics from './reports/RoundingAnalytics';
+import BusinessHealthReport from './reports/BusinessHealthReport';
 
 
 
@@ -23,7 +24,9 @@ type ReportCategory =
     | 'Financials'
     | 'Client Ledger'
     | 'Margin Performance'
-    | 'Rounding Analytics';
+    | 'Rounding Analytics'
+    | 'Business Intel'
+    | 'Health Diagnostic';
 
 const Reports: React.FC = () => {
     const { sales = [], customers = [] } = useData();
@@ -36,6 +39,8 @@ const Reports: React.FC = () => {
         if (location.pathname.includes('rounding-analytics')) return 'Rounding Analytics';
         if (location.pathname.includes('financials')) return 'Financials';
         if (location.pathname.includes('contacts')) return 'Client Ledger';
+        if (location.pathname.includes('intel')) return 'Business Intel';
+        if (location.pathname.includes('health')) return 'Health Diagnostic';
         return 'Overview';
     });
     const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
@@ -216,13 +221,16 @@ const Reports: React.FC = () => {
 
     const renderOverview = () => <RevenueDashboard />;
     const renderRoundingAnalytics = () => <RoundingAnalytics />;
+    const renderBusinessIntel = () => <RevenueDashboard />;
 
     const NAV_ITEMS = [
         { id: 'Overview', label: 'Dashboard', icon: Activity },
         { id: 'Sales Audit', label: 'Sales Audit', icon: Receipt },
         { id: 'Margin Performance', label: 'Margin Performance', icon: BarChart3 },
-        { id: 'Rounding Analytics', label: 'Rounding Analytics', icon: BarChart3 },
+        { id: 'Rounding Analytics', label: 'Rounding Analytics', icon: Activity },
         { id: 'Client Ledger', label: 'Client Ledger', icon: Users },
+        { id: 'Business Intel', label: 'Business Intel', icon: PieChartIcon },
+        { id: 'Health Diagnostic', label: 'Health Diagnostic', icon: Sparkles },
         { id: 'Auditor', label: 'Internal Auditor', icon: ShieldCheck },
     ];
 
@@ -361,6 +369,8 @@ const Reports: React.FC = () => {
                     {activeCategory === 'Margin Performance' && <MarginPerformancePage />}
                     {activeCategory === 'Rounding Analytics' && renderRoundingAnalytics()}
                     {activeCategory === 'Client Ledger' && renderClientLedger()}
+                    {activeCategory === 'Business Intel' && renderBusinessIntel()}
+                    {activeCategory === 'Health Diagnostic' && <BusinessHealthReport />}
                     {activeCategory === 'Auditor' && renderAuditor()}
                 </div>
             </div>

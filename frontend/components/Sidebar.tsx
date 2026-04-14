@@ -11,7 +11,7 @@ import {
   Landmark, Coins, Landmark as Bank, Scale, FileBarChart, PieChart as Pie,
   Wallet, Target, Truck, ShieldCheck, Database, WifiOff, HardDrive,
   CheckCircle, MonitorPlay, Maximize, Share2, Cpu as Processor, Sparkles,
-  Smartphone, FileSpreadsheet, BookOpen
+  Smartphone, FileSpreadsheet, BookOpen, FileCheck, History
 } from 'lucide-react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -253,7 +253,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, isCollapsed, toggle, toggleCo
           icon: <Activity size={18} />,
           hideSubMenu: true,
           subItems: [
+            { label: 'Dashboard', path: '/revenue', icon: <Activity size={14} /> },
             { label: 'Sales Audit', path: '/revenue/sales-audit', icon: <FileText size={14} /> },
+            { label: 'Margin Performance', path: '/revenue/margin-performance', icon: <BarChart3 size={14} /> },
             { label: 'Rounding Analytics', path: '/revenue/rounding-analytics', icon: <Activity size={14} /> },
             { label: 'Client Ledger', path: '/revenue/contacts', icon: <Users size={14} /> },
             { label: 'Business Intel', path: '/revenue/intel', icon: <PieChart size={14} /> },
@@ -286,10 +288,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, isCollapsed, toggle, toggleCo
         {
           label: 'Fiscal Reports',
           path: '/fiscal-reports',
-          icon: <BarChart3 size={18} />,
+          icon: <FileBarChart size={18} />,
           hideSubMenu: true,
           subItems: [
-            { label: 'Financials', path: '/fiscal-reports/financials', icon: <FileBarChart size={14} /> },
+            { label: 'Dashboard', path: '/fiscal-reports', icon: <BarChart3 size={14} /> },
+            { label: 'Profit & Loss', path: '/fiscal-reports/financials?type=IncomeStatement', icon: <TrendingUp size={14} /> },
+            { label: 'Balance Sheet', path: '/fiscal-reports/financials?type=BalanceSheet', icon: <Scale size={14} /> },
+            { label: 'Cash Flow', path: '/fiscal-reports/financials?type=CashFlow', icon: <Activity size={14} /> },
+            { label: 'Trial Balance', path: '/fiscal-reports/financials?type=TrialBalance', icon: <FileCheck size={14} /> },
+            { label: 'Budget Analysis', path: '/fiscal-reports/financials?type=Budget', icon: <Target size={14} /> },
+            { label: 'Aged Receivables', path: '/fiscal-reports/financials?type=AgedAR', icon: <History size={14} /> },
+            { label: 'Aged Payables', path: '/fiscal-reports/financials?type=AgedAP', icon: <FileText size={14} /> },
             { label: 'Bank Recon', path: '/fiscal-reports/reconciliation', icon: <Scale size={14} /> },
             { label: 'Budgets', path: '/fiscal-reports/budgets', icon: <Target size={14} /> },
           ]

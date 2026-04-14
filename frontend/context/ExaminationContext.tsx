@@ -523,11 +523,17 @@ export const ExaminationProvider: React.FC<ExaminationProviderProps> = ({ childr
 
         const normalizedInvoicePayload: ExaminationGeneratedInvoicePayload = resolvedSchoolName
           ? {
-            ...result.invoice,
-            customerName: resolvedSchoolName,
-            schoolName: resolvedSchoolName
-          }
-          : result.invoice;
+              ...result.invoice,
+              customerName: resolvedSchoolName,
+              schoolName: resolvedSchoolName,
+              origin_batch_id: sourceBatch?.batch_number || sourceBatch?.batchNumber || id,
+              batchId: sourceBatch?.batch_number || sourceBatch?.batchNumber || id
+            }
+          : {
+              ...result.invoice,
+              origin_batch_id: sourceBatch?.batch_number || sourceBatch?.batchNumber || id,
+              batchId: sourceBatch?.batch_number || sourceBatch?.batchNumber || id
+            };
 
         syncedInvoicePayload = normalizedInvoicePayload;
         sync = await persistExaminationInvoiceToFinance(normalizedInvoicePayload);

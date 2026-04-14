@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Copy, Printer } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { X, Copy, Printer, Paperclip } from 'lucide-react';
 
 interface QuickPrintModalProps {
   open: boolean;
@@ -8,7 +8,12 @@ interface QuickPrintModalProps {
   pricePerPage: number;
   staplePrice: number;
   currency: string;
-  onConfirm: (quantity: number, pages: number, total: number, type: 'photocopy' | 'printing', staples: number) => void;
+  onConfirm: (quantity: number, pages: number, total: number, type: 'photocopy' | 'printing', staples?: number) => void;
+  pinningItem?: {
+    costPerUnit: number;
+    conversionRate: number;
+    materialId?: string;
+  } | null;
 }
 
 const QuickPrintModal: React.FC<QuickPrintModalProps> = ({
@@ -18,24 +23,36 @@ const QuickPrintModal: React.FC<QuickPrintModalProps> = ({
   pricePerPage,
   staplePrice,
   currency,
-  onConfirm
+  onConfirm,
+  pinningItem
 }) => {
   const [quantity, setQuantity] = useState(1);
   const [pagesPerCopy, setPagesPerCopy] = useState(1);
   const [useStaples, setUseStaples] = useState(false);
   const [staplesPerCopy, setStaplesPerCopy] = useState(1);
+  const [enablePinning, setEnablePinning] = useState(false);
+  const [pinningCount, setPinningCount] = useState(1);
 
   const totalPages = quantity * pagesPerCopy;
   const printCost = totalPages * pricePerPage;
   const stapleCost = useStaples ? quantity * staplesPerCopy * staplePrice : 0;
-  const total = printCost + stapleCost;
+
+  const pinningCost = useMemo(() => {
+    if (!enablePinning || !pinningItem || pinningItem.conversionRate <= 0) return 0;
+    const unitsNeeded = Math.ceil(pinningCount / pinningItem.conversionRate);
+    return Number((unitsNeeded * pinningItem.costPerUnit).toFixed(2));
+  }, [enablePinning, pinningItem, pinningCount]);
+
+  const total = printCost + stapleCost + pinningCost;
 
   const handleConfirm = () => {
-    onConfirm(quantity, pagesPerCopy, total, type, useStaples ? quantity * staplesPerCopy : 0);
+    onConfirm(quantity, pagesPerCopy, total, type, useStaples ? quantity * staplesPerCopy : undefined);
     setQuantity(1);
     setPagesPerCopy(1);
     setUseStaples(false);
     setStaplesPerCopy(1);
+    setEnablePinning(false);
+    setPinningCount(1);
     onClose();
   };
 
@@ -160,6 +177,50 @@ const QuickPrintModal: React.FC<QuickPrintModalProps> = ({
             )}
           </div>
 
+          {pinningItem && (
+            <div className="border rounded p-3 space-y-3" style={{ borderColor: '#e2e5eb' }}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Paperclip className="w-4 h-4 text-slate-500" />
+                  <span className="text-xs font-medium" style={{ color: '#4a4f56' }}>Pinning / Stapling</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEnablePinning(!enablePinning)}
+                  className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
+                  style={{ backgroundColor: enablePinning ? '#10b981' : '#cbd5e1' }}
+                >
+                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${enablePinning ? 'translate-x-4' : 'translate-x-1'}`} />
+                </button>
+              </div>
+              {enablePinning && (
+                <div>
+                  <label className="block text-xs" style={{ color: '#5c6370', marginBottom: '4px', fontSize: '11px' }}>Number of Staples</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={pinningCount}
+                    onChange={(e) => setPinningCount(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-full px-2 py-1.5 rounded border text-right"
+                    style={{ 
+                      borderColor: '#d1d5db', 
+                      fontSize: '13px', 
+                      fontWeight: 500,
+                      color: '#1a1d23',
+                      backgroundColor: '#fafbfc',
+                      fontVariantNumeric: 'tabular-nums',
+                      lineHeight: 1.4,
+                      padding: '6px 8px'
+                    }}
+                  />
+                  <p className="text-xs mt-1" style={{ color: '#8b9099', lineHeight: 1.4, fontSize: '11px' }}>
+                    {currency}{pinningItem.costPerUnit} per {pinningItem.conversionRate} staples
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="p-3 rounded border" style={{ backgroundColor: '#f8f9fa', borderColor: '#e2e5eb', padding: '10px' }}>
             <div className="flex justify-between items-center" style={{ lineHeight: 1.5 }}>
               <span className="text-xs font-normal" style={{ color: '#5c6370' }}>Total Pages:</span>
@@ -169,6 +230,12 @@ const QuickPrintModal: React.FC<QuickPrintModalProps> = ({
               <div className="flex justify-between items-center mt-1.5" style={{ lineHeight: 1.5 }}>
                 <span className="text-xs font-normal" style={{ color: '#5c6370' }}>Total Staples:</span>
                 <span className="font-semibold text-right" style={{ color: '#1a1d23', fontSize: '13px', fontVariantNumeric: 'tabular-nums' }}>{quantity * staplesPerCopy}</span>
+              </div>
+            )}
+            {enablePinning && pinningCost > 0 && (
+              <div className="flex justify-between items-center mt-1.5" style={{ lineHeight: 1.5 }}>
+                <span className="text-xs font-normal" style={{ color: '#5c6370' }}>Pinning ({pinningCount} staples):</span>
+                <span className="font-semibold text-right" style={{ color: '#1a1d23', fontSize: '13px', fontVariantNumeric: 'tabular-nums' }}>{currency}{pinningCost.toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between items-center pt-2 mt-2 border-t" style={{ borderColor: '#e2e5eb', lineHeight: 1.4, marginTop: '8px', paddingTop: '8px' }}>

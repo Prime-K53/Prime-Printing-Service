@@ -1013,24 +1013,22 @@ export const OrderForm: React.FC<OrderFormProps> = ({ type, initialData, onSave,
         }
     };
 
-    const handleQuickPrintConfirm = (quantity: number, pagesPerCopy: number, total: number, printType: 'photocopy' | 'printing', staples: number = 0) => {
+const handleQuickPrintConfirm = (quantity: number, pagesPerCopy: number, total: number, printType: 'photocopy' | 'printing', staples?: number) => {
         const isPhotocopy = printType === 'photocopy';
         const pricePerPage = isPhotocopy 
           ? (companyConfig.transactionSettings?.pos?.photocopyPrice || 2.00)
           : (companyConfig.transactionSettings?.pos?.typePrintingPrice || 5.00);
         const staplePricePerUnit = companyConfig.transactionSettings?.pos?.staplePrice || 0;
 
-        // For quick print, we set price to the TOTAL (total pages × price per page) and quantity to 1
-        // This ensures the cart calculation (price × quantity) matches the modal total
         const totalPages = quantity * pagesPerCopy;
-        const finalPrice = totalPages * pricePerPage + staples * staplePricePerUnit;
+        const finalPrice = totalPages * pricePerPage + (staples || 0) * staplePricePerUnit;
 
         const newItem: CartItem = {
           id: `QUICK-${isPhotocopy ? 'PHOTO' : 'PRINT'}-${Date.now()}`,
           itemId: isPhotocopy ? 'SVC-PHOTOCOPY' : 'SVC-TYPE-PRINT',
           name: isPhotocopy ? 'Quick Photocopy' : 'Type & Printing',
           sku: isPhotocopy ? 'QUICK-PHOTO' : 'QUICK-PRINT',
-          desc: staples > 0 
+          desc: staples && staples > 0 
             ? (isPhotocopy ? `Quick Photocopy (${pagesPerCopy} pages × ${quantity} copies, ${staples} staples)` : `Type & Printing (${pagesPerCopy} pages × ${quantity} copies, ${staples} staples)`)
             : (isPhotocopy ? `Quick Photocopy (${pagesPerCopy} pages × ${quantity} copies)` : `Type & Printing (${pagesPerCopy} pages × ${quantity} copies)`),
           price: finalPrice,
@@ -1050,14 +1048,14 @@ export const OrderForm: React.FC<OrderFormProps> = ({ type, initialData, onSave,
             copies: quantity,
             staples: staples
           }
-        };
+        } as any;
 
         setFormData((prev: any) => ({
             ...prev,
             items: [...prev.items, newItem]
         }));
 
-        notify(`${quantity}x${pagesPerCopy} pages added to voucher`, 'success');
+        notify(`${quantity}x${pagesPerCopy} pages${staples && staples > 0 ? `, ${staples} staples` : ''} added to voucher`, 'success');
     };
 
     const handleAddItem = async (item: Item) => {
@@ -2299,6 +2297,16 @@ export const OrderForm: React.FC<OrderFormProps> = ({ type, initialData, onSave,
                             : (companyConfig.transactionSettings?.pos?.typePrintingPrice || 5.00)}
                         staplePrice={companyConfig.transactionSettings?.pos?.staplePrice || 0}
                         currency={currency}
+                        pinningItem={(() => {
+                            const pinning = inventory.find(i => i.name?.toLowerCase().includes('staple') || i.name?.toLowerCase().includes('pin'));
+                            if (!pinning) return null;
+                            const conversionRate = Number((pinning as any).conversionRate ?? (pinning as any).conversion_rate ?? 1);
+                            return {
+                                costPerUnit: Number((pinning as any).cost_price ?? (pinning as any).cost_per_unit ?? pinning.cost ?? 0),
+                                conversionRate: conversionRate,
+                                materialId: pinning.id
+                            };
+                        })()}
                         onConfirm={handleQuickPrintConfirm}
                     />
                 )}
