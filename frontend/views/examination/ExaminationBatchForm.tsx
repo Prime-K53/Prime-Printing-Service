@@ -153,7 +153,7 @@ const ExaminationBatchForm: React.FC = () => {
       ]);
       toast.success('Examination batch created successfully');
       const batchRef = String(newBatch.batch_number || newBatch.batchNumber || newBatch.id || '').trim();
-      navigate(`/examination/batches/${newBatch.id}`, { state: { name: batchRef } });
+      navigate(`/examination/batches/${encodeURIComponent(batchRef)}`, { state: { name: batchRef } });
     } catch (error: any) {
       console.error('Failed to create batch:', error);
       const errorMessage = error?.message || 'Failed to create examination batch. Please try again.';

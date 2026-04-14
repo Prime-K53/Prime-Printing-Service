@@ -1102,56 +1102,134 @@ export const QuickPrintModal: React.FC<{
     const currency = companyConfig.currencySymbol || 'K';
     const [pages, setPages] = useState(1);
     const [copies, setCopies] = useState(1);
+    const [useStaples, setUseStaples] = useState(false);
+    const [staplesPerCopy, setStaplesPerCopy] = useState(1);
 
     const pricePerPage = service.price || 0;
-    const totalAmount = pages * copies * pricePerPage;
+    const staplePrice = companyConfig.transactionSettings?.pos?.staplePrice || 0;
+    const totalPages = pages * copies;
+    const printCost = totalPages * pricePerPage;
+    const stapleCost = useStaples ? copies * staplesPerCopy * staplePrice : 0;
+    const totalAmount = printCost + stapleCost;
 
     const handleConfirm = () => {
         onSelect({
             ...service,
             pages,
             quantity: copies,
-            price: pages > 0 ? (totalAmount / copies) : totalAmount,
+            price: pages > 0 ? (printCost / copies) : printCost,
+            staples: useStaples ? copies * staplesPerCopy : 0,
+            stapleCost: stapleCost,
             adjustmentSnapshots: [],
             adjustmentTotal: 0
         });
     };
 
     return (
-        <div className="absolute inset-0 z-[70] bg-black/60 flex items-center justify-center p-4 backdrop-blur-[2px]">
-            <div className="bg-white rounded shadow-2xl w-full max-w-sm flex flex-col overflow-hidden border border-[#d4d7dc]">
-                <div className="px-6 py-4 border-b border-[#d4d7dc] flex justify-between items-center bg-[#f4f5f8]">
-                    <h2 className="text-sm font-bold text-[#393a3d] uppercase tracking-wider">{service.name}</h2>
-                    <button onClick={onClose} className="text-[#8d9096] hover:text-[#d52b1e]"><X size={20} /></button>
+        <div className="absolute inset-0 z-[70] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(30, 35, 44, 0.5)', backdropFilter: 'blur(4px)', fontFamily: 'Inter, Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-sm flex flex-col overflow-hidden border" style={{ borderColor: '#e2e5eb' }}>
+                <div className="flex items-center justify-between px-4 py-3 border-b flex justify-between items-center" style={{ backgroundColor: '#f8f9fa', borderColor: '#e2e5eb', padding: '10px 16px' }}>
+                    <h2 className="text-base font-semibold" style={{ color: '#1a1d23', fontSize: '20px', lineHeight: 1.4, textTransform: 'none', letterSpacing: 'normal' }}>{service.name}</h2>
+                    <button onClick={onClose} className="p-1 rounded hover:bg-slate-100 transition-colors" style={{ padding: '4px' }}>
+                        <X size={18} className="text-slate-500" />
+                    </button>
                 </div>
-                <div className="p-6 space-y-4">
+                <div className="p-4 space-y-4" style={{ padding: '16px' }}>
                     <div>
-                        <label className="text-xs font-bold text-[#6b6c7f] uppercase tracking-wider block mb-2">Number of Pages</label>
+                        <label className="block text-xs font-medium" style={{ color: '#4a4f56', marginBottom: '6px', lineHeight: 1.5, fontSize: '12px' }}>Pages per Copy</label>
                         <input
                             type="number"
                             min="1"
-                            className="w-full p-3 border border-[#babec5] rounded text-sm font-bold focus:border-[#0077c5] outline-none text-right"
+                            className="w-full rounded border text-right"
+                            style={{ 
+                                padding: '8px 10px', 
+                                borderColor: '#d1d5db', 
+                                fontSize: '13.5px', 
+                                fontWeight: 500,
+                                color: '#1a1d23',
+                                backgroundColor: '#fafbfc',
+                                fontVariantNumeric: 'tabular-nums',
+                                lineHeight: 1.4
+                            }}
                             value={pages}
                             onChange={(e) => setPages(Math.max(1, parseInt(e.target.value) || 1))}
                         />
                     </div>
                     <div>
-                        <label className="text-xs font-bold text-[#6b6c7f] uppercase tracking-wider block mb-2">Number of Copies</label>
+                        <label className="block text-xs font-medium" style={{ color: '#4a4f56', marginBottom: '6px', lineHeight: 1.5, fontSize: '12px' }}>Number of Copies</label>
                         <input
                             type="number"
                             min="1"
-                            className="w-full p-3 border border-[#babec5] rounded text-sm font-bold focus:border-[#0077c5] outline-none text-right"
+                            className="w-full rounded border text-right"
+                            style={{ 
+                                padding: '8px 10px', 
+                                borderColor: '#d1d5db', 
+                                fontSize: '13.5px', 
+                                fontWeight: 500,
+                                color: '#1a1d23',
+                                backgroundColor: '#fafbfc',
+                                fontVariantNumeric: 'tabular-nums',
+                                lineHeight: 1.4
+                            }}
                             value={copies}
                             onChange={(e) => setCopies(Math.max(1, parseInt(e.target.value) || 1))}
                         />
                     </div>
-                    <div className="mt-6 pt-4 border-t border-[#f4f5f8] flex justify-between items-center">
-                        <span className="text-xs font-bold text-[#6b6c7f] uppercase tracking-wider">Total Price</span>
-                        <span className="text-xl font-bold text-[#0077c5]">{currency}{(totalAmount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                    <div className="flex items-center justify-between p-3 rounded border" style={{ backgroundColor: '#f8f9fa', borderColor: '#e2e5eb', padding: '8px 10px' }}>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="useStaplesPS"
+                                checked={useStaples}
+                                onChange={(e) => setUseStaples(e.target.checked)}
+                                className="w-4 h-4 rounded"
+                                style={{ accentColor: '#0077c5' }}
+                            />
+                            <label htmlFor="useStaplesPS" className="text-xs font-medium" style={{ color: '#4a4f56', lineHeight: 1.5 }}>
+                                Include Staple Wire
+                            </label>
+                        </div>
+                        {useStaples && (
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-xs" style={{ color: '#8b9099', lineHeight: 1.4, fontSize: '11px' }}>per copy:</span>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value={staplesPerCopy}
+                                    onChange={(e) => setStaplesPerCopy(Math.max(1, parseInt(e.target.value) || 1))}
+                                    className="w-12 px-2 py-1 rounded border text-center"
+                                    style={{ 
+                                        borderColor: '#d1d5db', 
+                                        fontSize: '13px', 
+                                        fontWeight: 500,
+                                        color: '#1a1d23',
+                                        fontVariantNumeric: 'tabular-nums',
+                                        lineHeight: 1.4,
+                                        padding: '4px 6px'
+                                    }}
+                                />
+                            </div>
+                        )}
+                    </div>
+                    <div className="p-3 rounded border" style={{ backgroundColor: '#f8f9fa', borderColor: '#e2e5eb', padding: '10px' }}>
+                        <div className="flex justify-between items-center" style={{ lineHeight: 1.5 }}>
+                            <span className="text-xs font-normal" style={{ color: '#5c6370' }}>Total Pages:</span>
+                            <span className="font-semibold text-right" style={{ color: '#1a1d23', fontSize: '13px', fontVariantNumeric: 'tabular-nums' }}>{totalPages}</span>
+                        </div>
+                        {useStaples && (
+                            <div className="flex justify-between items-center mt-1.5" style={{ lineHeight: 1.5 }}>
+                                <span className="text-xs font-normal" style={{ color: '#5c6370' }}>Total Staples:</span>
+                                <span className="font-semibold text-right" style={{ color: '#1a1d23', fontSize: '13px', fontVariantNumeric: 'tabular-nums' }}>{copies * staplesPerCopy}</span>
+                            </div>
+                        )}
+                        <div className="flex justify-between items-center pt-2 mt-2 border-t" style={{ borderColor: '#e2e5eb', lineHeight: 1.4, marginTop: '8px', paddingTop: '8px' }}>
+                            <span className="text-xs font-semibold" style={{ color: '#4a4f56' }}>Total Price</span>
+                            <span className="font-bold text-right" style={{ color: '#0077c5', fontSize: '18px', fontVariantNumeric: 'tabular-nums' }}>{currency}{(totalAmount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                        </div>
                     </div>
                 </div>
-                <div className="p-4 bg-[#f4f5f8] border-t border-[#d4d7dc] flex justify-end">
-                    <button onClick={handleConfirm} className="bg-[#0077c5] text-white px-6 py-2.5 rounded-full font-bold text-sm uppercase tracking-wider hover:bg-[#005da3] transition-all">
+                <div className="flex gap-2 border-t justify-end" style={{ padding: '10px 16px', borderColor: '#e2e5eb', backgroundColor: '#f8f9fa' }}>
+                    <button onClick={handleConfirm} className="rounded font-medium transition-colors" style={{ padding: '8px 14px', fontSize: '13px', color: '#ffffff', backgroundColor: '#0077c5', border: 'none' }}>
                         Add to Order
                     </button>
                 </div>

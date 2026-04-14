@@ -24,6 +24,25 @@ import {
 import { logger } from './logger';
 
 /**
+ * Helper to apply UOM conversion when updating stock
+ * Converts purchase/stock unit quantities based on item's conversion settings
+ */
+const applyUOMConversion = (item: Item, quantity: number, operation: 'add' | 'remove'): number => {
+    const conversionRate = item.conversionRate || 1;
+    const hasUOMConversion = item.purchaseUnit && item.usageUnit && conversionRate > 1;
+    
+    if (!hasUOMConversion) {
+        return quantity;
+    }
+    
+    if (operation === 'add') {
+        return quantity * conversionRate;
+    } else {
+        return quantity / conversionRate;
+    }
+};
+
+/**
  * Helper to get dynamic GL mapping from CompanyConfig
  */
 const getGLConfig = () => {
@@ -508,7 +527,8 @@ export const transactionService = {
                 const matItem = await resolveInventoryRecord(comp.materialId, inventorySnapshot, inventoryStore);
                 if (matItem) {
                     const previousQuantity = matItem.stock || 0;
-                    const newQuantity = previousQuantity - comp.quantity;
+                    const convertedQty = applyUOMConversion(matItem, comp.quantity, 'remove');
+                    const newQuantity = previousQuantity - convertedQty;
                     matItem.stock = newQuantity;
                     await inventoryStore.put(matItem);
 
@@ -540,7 +560,8 @@ export const transactionService = {
                 const invItem = await resolveInventoryRecord(item.id, inventorySnapshot, inventoryStore);
                 if (invItem && invItem.type !== 'Service') {
                     const previousQuantity = invItem.stock || 0;
-                    const newQuantity = previousQuantity - item.quantity;
+                    const convertedQty = applyUOMConversion(invItem, item.quantity, 'remove');
+                    const newQuantity = previousQuantity - convertedQty;
                     invItem.stock = newQuantity;
                     await inventoryStore.put(invItem);
 
@@ -1626,7 +1647,8 @@ export const transactionService = {
                         if (!targetItemId) continue;
                         const invItem = await inventoryStore.get(targetItemId);
                         if (invItem) {
-                            invItem.stock = (invItem.stock || 0) + item.quantity;
+                            const convertedQty = applyUOMConversion(invItem, item.quantity, 'add');
+                            invItem.stock = (invItem.stock || 0) + convertedQty;
                             await inventoryStore.put(invItem);
                         }
                     }
@@ -2649,7 +2671,8 @@ export const transactionService = {
                 for (const item of invoiceData.items) {
                     const invItem = await resolveInventoryRecord(item.id, inventory, inventoryStore);
                     if (invItem) {
-                        invItem.stock = (invItem.stock || 0) - item.quantity;
+                        const convertedQty = applyUOMConversion(invItem, item.quantity, 'remove');
+                        invItem.stock = (invItem.stock || 0) - convertedQty;
                         await inventoryStore.put(invItem);
                     }
                 }
@@ -3125,7 +3148,8 @@ export const transactionService = {
                 for (const item of invoice.items) {
                     const invItem = await inventoryStore.get(item.id);
                     if (invItem) {
-                        invItem.stock = (invItem.stock || 0) + item.quantity;
+                        const convertedQty = applyUOMConversion(invItem, item.quantity, 'add');
+                        invItem.stock = (invItem.stock || 0) + convertedQty;
                         await inventoryStore.put(invItem);
                     }
                 }
@@ -3307,7 +3331,8 @@ export const transactionService = {
                     const invItem = await inventoryStore.get(item.id);
                     if (invItem && item.type !== 'Service') {
                         const previousQuantity = invItem.stock || 0;
-                        const newQuantity = previousQuantity + item.quantity;
+                        const convertedQty = applyUOMConversion(invItem, item.quantity, 'add');
+                        const newQuantity = previousQuantity + convertedQty;
                         invItem.stock = newQuantity;
                         await inventoryStore.put(invItem);
 
@@ -3811,11 +3836,12 @@ export const transactionService = {
                     const invItem = await inventoryStore.get(item.itemId);
                     if (invItem) {
                         const oldStock = invItem.stock || 0;
-                        const newStock = oldStock + item.quantityReceived;
+                        const convertedQty = applyUOMConversion(invItem, item.quantityReceived, 'add');
+                        const newStock = oldStock + convertedQty;
 
-                        // Weighted Average Cost calculation
+                        // Weighted Average Cost calculation (cost is per purchase unit)
                         const oldCost = invItem.cost || 0;
-                        const newCost = ((oldCost * oldStock) + (item.cost * item.quantityReceived)) / newStock;
+                        const newCost = ((oldCost * oldStock) + (item.cost * convertedQty)) / newStock;
 
                         invItem.stock = newStock;
                         invItem.cost = newCost;
@@ -3950,16 +3976,19 @@ export const transactionService = {
                 if (!item) throw new Error("Item not found");
 
                 let adjustmentCost = item.cost || 0;
+                
+                // Apply UOM conversion for the adjustment
+                const convertedQty = applyUOMConversion(item, params.qtyChange, params.qtyChange > 0 ? 'add' : 'remove');
 
                 if (params.variantId && item.variants) {
                     const variantIndex = item.variants.findIndex(v => v.id === params.variantId);
                     if (variantIndex !== -1) {
-                        item.variants[variantIndex].stock = (item.variants[variantIndex].stock || 0) + params.qtyChange;
+                        item.variants[variantIndex].stock = (item.variants[variantIndex].stock || 0) + convertedQty;
                         adjustmentCost = item.variants[variantIndex].cost || item.cost || 0;
                     }
                 }
 
-                item.stock = (item.stock || 0) + params.qtyChange;
+                item.stock = (item.stock || 0) + convertedQty;
                 await inventoryStore.put(item);
 
                 // If it's a significant adjustment, log to ledger
@@ -4235,9 +4264,10 @@ export const transactionService = {
                 for (const mat of consumedMaterials) {
                     const item = await invStore.get(mat.materialId);
                     if (item) {
-                        item.stock = (item.stock || 0) - mat.quantity;
+                        const convertedQty = applyUOMConversion(item, mat.quantity, 'remove');
+                        item.stock = (item.stock || 0) - convertedQty;
                         // Release from reserved as well if it was reserved
-                        item.reserved = Math.max(0, (item.reserved || 0) - mat.quantity);
+                        item.reserved = Math.max(0, (item.reserved || 0) - convertedQty);
                         await invStore.put(item);
 
                         // Ledger entry for material consumption
@@ -4328,7 +4358,8 @@ export const transactionService = {
                 // 1. Update Inventory
                 const item = await inventoryStore.get(materialId);
                 if (item) {
-                    item.stock = (item.stock || 0) - quantity;
+                    const convertedQty = applyUOMConversion(item, quantity, 'remove');
+                    item.stock = (item.stock || 0) - convertedQty;
                     await inventoryStore.put(item);
                 }
 

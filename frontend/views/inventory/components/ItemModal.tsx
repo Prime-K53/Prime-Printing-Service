@@ -1294,47 +1294,51 @@ const ItemModal: React.FC<ItemModalProps> = ({
                                         )}
                                     </div>
 
-                                    {/* Conversion Unit Section for Materials */}
-                                    {formData.type === 'Material' && (
+                                    {/* Conversion Unit Section for Materials & Stationery */}
+                                    {(formData.type === 'Material' || formData.type === 'Stationery') && (
                                         <div className="border-t border-slate-200 pt-6">
                                             <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                                                <Scale className="w-5 h-5 text-indigo-600" /> Material Conversion Units
+                                                <Scale className="w-5 h-5 text-indigo-600" /> UOM Conversion
                                             </h3>
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-indigo-50 p-4 rounded-lg border border-indigo-100">
                                                 <div>
-                                                    <label className="block text-xs font-medium text-slate-600 mb-1">Purchase Unit (e.g., Ream/Kg)</label>
+                                                    <label className="block text-xs font-medium text-slate-600 mb-1">Purchase Unit (e.g., Box/Ream)</label>
                                                     <input
                                                         type="text"
                                                         value={formData.purchaseUnit || ''}
                                                         onChange={(e) => setFormData({ ...formData, purchaseUnit: e.target.value })}
                                                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
-                                                        placeholder="e.g. Ream"
+                                                        placeholder="e.g. Box"
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-xs font-medium text-slate-600 mb-1">Usage Unit (e.g., Sheet/Gram)</label>
+                                                    <label className="block text-xs font-medium text-slate-600 mb-1">Stock/Usage Unit (e.g., Pcs/Sheet)</label>
                                                     <input
                                                         type="text"
                                                         value={formData.usageUnit || ''}
                                                         onChange={(e) => setFormData({ ...formData, usageUnit: e.target.value })}
                                                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
-                                                        placeholder="e.g. Sheet"
+                                                        placeholder="e.g. Pcs"
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-xs font-medium text-slate-600 mb-1">Conversion Rate (Qty per Purchase Unit)</label>
+                                                    <label className="block text-xs font-medium text-slate-600 mb-1">Conversion Rate (Stock per Purchase Unit)</label>
                                                     <input
                                                         type="number"
                                                         value={formData.conversionRate || 1}
                                                         onChange={(e) => setFormData({ ...formData, conversionRate: Number(e.target.value) })}
                                                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
-                                                        placeholder="e.g. 500"
+                                                        placeholder="e.g. 50"
                                                     />
                                                 </div>
                                             </div>
-                                            <p className="mt-2 text-[10px] text-slate-500 italic">
-                                                Example: 1 Ream (Purchase) = 500 Sheets (Usage). Conversion Rate = 500.
-                                            </p>
+                                            <div className="mt-3 flex items-start gap-2 bg-amber-50 p-3 rounded-lg border border-amber-200">
+                                                <Info className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                                                <p className="text-xs text-amber-800">
+                                                    <strong>How it works:</strong> Purchase in <em>{formData.purchaseUnit || 'Purchase Unit'}</em>, stock in <em>{formData.usageUnit || 'Stock Unit'}</em>.<br />
+                                                    <strong>Example:</strong> Buying 1 box of 50 pens → Stock increases by 50 units. Cost is per {formData.purchaseUnit || 'purchase unit'}.
+                                                </p>
+                                            </div>
                                         </div>
                                     )}
 

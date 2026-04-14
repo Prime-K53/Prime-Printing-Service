@@ -41,6 +41,7 @@ export interface TransactionSettingsConfig {
     showCategoryFilters: boolean;
     photocopyPrice: number;
     typePrintingPrice: number;
+    staplePrice: number;
     receiptFooter: string;
     requireCustomer: boolean;
     defaultPaymentMethod: string;

@@ -1,24 +1,20 @@
 
-import React, { useState, useMemo } from 'react';
-import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-    AreaChart, Area, Cell, PieChart, Pie
-} from 'recharts';
+import React, { useState } from 'react';
 import {
     Activity, Filter, Printer, X,
     Users, BarChart3, Receipt, ShieldCheck
 } from 'lucide-react';
+import MarginPerformancePage from './reports/MarginPerformance';
 import { useData } from '../context/DataContext';
 import { useLocation } from 'react-router-dom';
-import { format, differenceInDays } from 'date-fns';
-import { calculateMarginAnalysis, calculateAdjustmentStatistics } from '../services/reportService';
+
 import SalesAudit from './reports/SalesAudit';
 import RevenueDashboard from './reports/RevenueDashboard';
 import ClientLedger from './reports/ClientLedger';
 import InternalAuditor from './reports/InternalAuditor';
 import RoundingAnalytics from './reports/RoundingAnalytics';
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
 
 type ReportCategory =
     | 'Overview'
@@ -30,7 +26,7 @@ type ReportCategory =
     | 'Rounding Analytics';
 
 const Reports: React.FC = () => {
-    const { sales = [], companyConfig, invoices = [], customers = [] } = useData();
+    const { sales = [], customers = [] } = useData();
     const location = useLocation();
     const currency = companyConfig?.currencySymbol || '$';
 
@@ -45,12 +41,9 @@ const Reports: React.FC = () => {
     const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
     const [selectedSubAccountNames, setSelectedSubAccountNames] = useState<string[]>([]);
     const [isCustomerFilterOpen, setIsCustomerFilterOpen] = useState(false);
-    const [selectedDateRange, setSelectedDateRange] = useState<'all' | 'week' | 'month' | 'quarter' | 'year'>('all');
+    
 
-    const formatCurrency = (val: number) => {
-        if (val === undefined || val === null || isNaN(val)) return `${currency}0.00`;
-        return `${currency}${val.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-    };
+    
 
     const renderAuditor = () => <InternalAuditor />;
 
@@ -365,7 +358,7 @@ const Reports: React.FC = () => {
                 <div className="max-w-[1600px] mx-auto">
                     {activeCategory === 'Overview' && renderOverview()}
                     {activeCategory === 'Sales Audit' && <SalesAudit />}
-                    {activeCategory === 'Margin Performance' && renderMarginPerformance()}
+                    {activeCategory === 'Margin Performance' && <MarginPerformancePage />}
                     {activeCategory === 'Rounding Analytics' && renderRoundingAnalytics()}
                     {activeCategory === 'Client Ledger' && renderClientLedger()}
                     {activeCategory === 'Auditor' && renderAuditor()}

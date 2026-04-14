@@ -234,6 +234,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               gridColumns: 5,
               photocopyPrice: 0,
               typePrintingPrice: 0,
+              staplePrice: 0,
               allowDiscounts: true,
               showCategoryFilters: true,
               receiptFooter: '',

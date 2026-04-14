@@ -381,23 +381,26 @@ const POS: React.FC = () => {
     setQuickPrintModal({ open: true, type: 'printing' });
   };
 
-const handleQuickPrintConfirm = (quantity: number, pagesPerCopy: number, total: number, printType: 'photocopy' | 'printing') => {
+const handleQuickPrintConfirm = (quantity: number, pagesPerCopy: number, total: number, printType: 'photocopy' | 'printing', staples: number = 0) => {
         const isPhotocopy = printType === 'photocopy';
         const pricePerPage = isPhotocopy 
           ? (companyConfig.transactionSettings?.pos?.photocopyPrice || 2.00)
           : (companyConfig.transactionSettings?.pos?.typePrintingPrice || 5.00);
+        const staplePricePerUnit = companyConfig.transactionSettings?.pos?.staplePrice || 0;
 
         // For quick print, we set price to the TOTAL (total pages × price per page) and quantity to 1
         // This ensures the cart calculation (price × quantity) matches the modal total
         const totalPages = quantity * pagesPerCopy;
-        const finalPrice = totalPages * pricePerPage;
+        const finalPrice = totalPages * pricePerPage + staples * staplePricePerUnit;
 
         const quickItem: CartItem = {
           id: `QUICK-${isPhotocopy ? 'PHOTO' : 'PRINT'}-${Date.now()}`,
           itemId: isPhotocopy ? 'SVC-PHOTOCOPY' : 'SVC-TYPE-PRINT',
           name: isPhotocopy ? 'Quick Photocopy' : 'Type & Printing',
           sku: isPhotocopy ? 'QUICK-PHOTO' : 'QUICK-PRINT',
-          desc: isPhotocopy ? `Quick Photocopy (${pagesPerCopy} pages × ${quantity} copies)` : `Type & Printing (${pagesPerCopy} pages × ${quantity} copies)`,
+          desc: staples > 0 
+            ? (isPhotocopy ? `Quick Photocopy (${pagesPerCopy} pages × ${quantity} copies, ${staples} staples)` : `Type & Printing (${pagesPerCopy} pages × ${quantity} copies, ${staples} staples)`)
+            : (isPhotocopy ? `Quick Photocopy (${pagesPerCopy} pages × ${quantity} copies)` : `Type & Printing (${pagesPerCopy} pages × ${quantity} copies)`),
           price: finalPrice,
           quantity: 1,
           pagesOverride: pagesPerCopy,
@@ -412,12 +415,13 @@ const handleQuickPrintConfirm = (quantity: number, pagesPerCopy: number, total: 
           lockedUnitPricePerCopy: finalPrice,
           serviceDetails: {
             pages: pagesPerCopy,
-            copies: quantity
+            copies: quantity,
+            staples: staples
           }
         };
 
         setCart(prev => [...prev, quickItem]);
-        notify(`${quantity}x${pagesPerCopy} pages added to cart`, 'success');
+        notify(`${quantity}x${pagesPerCopy} pages${staples > 0 ? `, ${staples} staples` : ''} added to cart`, 'success');
       };
 
   const updateQuantity = async (id: string, value: number, isAbsolute?: boolean) => {
@@ -860,9 +864,10 @@ const handleQuickPrintConfirm = (quantity: number, pagesPerCopy: number, total: 
           pricePerPage={quickPrintModal.type === 'photocopy'
             ? (companyConfig.transactionSettings?.pos?.photocopyPrice || 2.00)
             : (companyConfig.transactionSettings?.pos?.typePrintingPrice || 5.00)}
+          staplePrice={companyConfig.transactionSettings?.pos?.staplePrice || 0}
           currency={currency}
-          onConfirm={(quantity, pagesPerCopy, total) => {
-            handleQuickPrintConfirm(quantity, pagesPerCopy, total, quickPrintModal.type);
+          onConfirm={(quantity, pagesPerCopy, total, printType, staples) => {
+            handleQuickPrintConfirm(quantity, pagesPerCopy, total, quickPrintModal.type, staples);
             setQuickPrintModal({ open: false, type: quickPrintModal.type });
           }}
           onClose={() => setQuickPrintModal({ open: false, type: quickPrintModal.type })}

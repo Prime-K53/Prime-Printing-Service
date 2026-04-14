@@ -121,6 +121,11 @@ const SmartPricing = lazyWithRetry('./views/tools/SmartPricing', () => import('.
 const MarketAdjustments = lazyWithRetry('./views/tools/MarketAdjustments', () => import('./views/tools/MarketAdjustments'));
 
 const BusinessHealthReport = lazyWithRetry('./views/reports/BusinessHealthReport', () => import('./views/reports/BusinessHealthReport'));
+const SalesAuditPage = lazyWithRetry('./views/reports/SalesAudit', () => import('./views/reports/SalesAudit'));
+const ClientLedgerPage = lazyWithRetry('./views/reports/ClientLedger', () => import('./views/reports/ClientLedger'));
+const RoundingAnalyticsPage = lazyWithRetry('./views/reports/RoundingAnalytics', () => import('./views/reports/RoundingAnalytics'));
+const MarginPerformancePage = lazyWithRetry('./views/reports/MarginPerformance', () => import('./views/reports/MarginPerformance'));
+const RevenueDashboard = lazyWithRetry('./views/reports/RevenueDashboard', () => import('./views/reports/RevenueDashboard'));
 // VATReport removed
 
 const PageLoader = () => (
@@ -448,11 +453,11 @@ const AppLayout: React.FC = () => {
                 <Route path="/sales-flow/sms" element={<Navigate to="/internal-tools/chat" replace />} />
                 <Route path="/reports/statements" element={<Navigate to="/revenue/contacts" replace />} />
                 <Route path="/accounts/chart" element={<Navigate to="/accounts/chart-of-accounts" replace />} />
-                <Route path="/revenue/sales-audit" element={<ProtectedRoute permission="reports.view"><Reports /></ProtectedRoute>} />
-                <Route path="/revenue/margin-performance" element={<ProtectedRoute permission="reports.view"><Reports /></ProtectedRoute>} />
-                <Route path="/revenue/rounding-analytics" element={<ProtectedRoute permission="reports.view"><Reports /></ProtectedRoute>} />
-                <Route path="/revenue/contacts" element={<ProtectedRoute permission="reports.view"><Reports /></ProtectedRoute>} />
-                <Route path="/revenue/intel" element={<ProtectedRoute permission="reports.view"><Reports /></ProtectedRoute>} />
+                <Route path="/revenue/sales-audit" element={<ProtectedRoute permission="reports.view"><SalesAuditPage /></ProtectedRoute>} />
+                <Route path="/revenue/margin-performance" element={<ProtectedRoute permission="reports.view"><MarginPerformancePage /></ProtectedRoute>} />
+                <Route path="/revenue/rounding-analytics" element={<ProtectedRoute permission="reports.view"><RoundingAnalyticsPage /></ProtectedRoute>} />
+                <Route path="/revenue/contacts" element={<ProtectedRoute permission="reports.view"><ClientLedgerPage /></ProtectedRoute>} />
+                <Route path="/revenue/intel" element={<ProtectedRoute permission="reports.view"><RevenueDashboard /></ProtectedRoute>} />
                 <Route path="/revenue/health" element={<ProtectedRoute permission="reports.view"><BusinessHealthReport /></ProtectedRoute>} />
                 <Route path="/production/work-orders" element={<Navigate to="/industrial/work-orders" replace />} />
                 <Route path="/production/scheduler" element={<Navigate to="/industrial/scheduler" replace />} />

@@ -227,19 +227,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 supplier: { prefix: 'SUPP', startNumber: 1, padding: 4 },
                 batch: { prefix: 'BAT', startNumber: 1, padding: 4 }
         },
-          pos: {
-              allowReturns: true,
-              requireCustomer: false,
-              enableShortcuts: true,
-              showItemImages: true,
-              gridColumns: 5,
-              photocopyPrice: 0,
-              typePrintingPrice: 0,
-              allowDiscounts: true,
-              showCategoryFilters: true,
-              receiptFooter: '',
-              defaultPaymentMethod: 'Cash'
-          }
+pos: {
+                allowReturns: true,
+                requireCustomer: false,
+                enableShortcuts: true,
+                showItemImages: true,
+                gridColumns: 5,
+                photocopyPrice: 0,
+                typePrintingPrice: 0,
+                staplePrice: 0,
+                allowDiscounts: true,
+                showCategoryFilters: true,
+                receiptFooter: '',
+                defaultPaymentMethod: 'Cash'
+            }
       },
       pricingSettings: { ...DEFAULT_PRICING_SETTINGS },
       integrationSettings: {

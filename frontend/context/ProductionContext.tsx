@@ -77,16 +77,60 @@ export const ProductionProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         if (typeof window === 'undefined') return;
 
         const handleExaminationBatchToProduction = async (event: CustomEvent) => {
-            const { workOrder } = event.detail;
+            const { workOrder, batch, schoolName } = event.detail;
             if (workOrder) {
                 try {
                     await storeAddWorkOrder(workOrder);
-                    notify(`Examination work order created: ${workOrder.productName}`, 'success');
+                    
+                    // The workOrder.productName is created in productionAdapter.ts with format:
+                    // "Exam: {subject} ({class}) - {schoolName}"
+                    // The schoolName comes from the payload sent by ExaminationContext
+                    // 
+                    // However, if the original schoolName lookup failed in ExaminationContext,
+                    // it would be "Unknown School". So we try to get a better name here.
+                    
+                    let displayName = schoolName;
+                    
+                    // If we have a valid schoolName passed in, use it
+                    // If it's "Unknown School" or empty, try other sources
+                    if (!displayName || displayName === 'Unknown School' || !displayName.trim()) {
+                        // Try batch.school?.name
+                        displayName = batch?.school?.name;
+                    }
+                    if (!displayName || displayName === 'Unknown School' || !displayName.trim()) {
+                        // Try batch.schoolName
+                        displayName = batch?.schoolName;
+                    }
+                    if (!displayName || displayName === 'Unknown School' || !displayName.trim()) {
+                        // Try batch.customerName
+                        displayName = batch?.customerName;
+                    }
+                    if (!displayName || displayName === 'Unknown School' || !displayName.trim()) {
+                        // Try extracting from workOrder.notes
+                        const notesMatch = workOrder?.notes?.match(/School:\s*(.+)/);
+                        if (notesMatch) {
+                            displayName = notesMatch[1].trim();
+                        }
+                    }
+                    if (!displayName || displayName === 'Unknown School' || !displayName.trim()) {
+                        displayName = 'Unknown School';
+                    }
+                    
+                    // If we found a better name than what was in productName, rebuild the notification
+                    let finalProductName = workOrder.productName;
+                    
+                    // Check if productName has "Unknown School" and we have a better name
+                    if (finalProductName.includes('Unknown School') && displayName !== 'Unknown School') {
+                        // Replace "Unknown School" with the correct name
+                        finalProductName = finalProductName.replace('Unknown School', displayName);
+                    }
+                    
+                    notify(`Examination work order created: ${finalProductName}`, 'success');
                     addAuditLog({
                         action: 'CREATE',
                         entityType: 'WorkOrder',
                         entityId: workOrder.id,
-                        details: `Examination batch work order created: ${workOrder.productName}`,
+                        details: `Examination batch work order created: ${finalProductName}`,
                         newValue: workOrder
                     });
                 } catch (error) {

@@ -1320,9 +1320,9 @@ export function calculateMarginAnalysis(transactions: any[] = []): any[] {
     const costBeforeWastage = totalCost;
     const costBeforeTransport = costBeforeWastage + totalWastage;
     const costBeforeProfit = costBeforeTransport + totalTransport;
-    const netMarginPerSale = totalProfit;
     const finalPrice = (trans.totalAmount || 0);
     const grossMargin = finalPrice - totalCost;
+    const netMarginPerSale = grossMargin; // Actual profit = final price - production cost
     const marginPercent = finalPrice > 0 ? (grossMargin / finalPrice) * 100 : 0;
 
     return {

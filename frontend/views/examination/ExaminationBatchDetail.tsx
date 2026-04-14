@@ -11,7 +11,7 @@ import { ManageSubjectsDialog } from './components/ManageSubjectsDialog';
 import { buildRecurringDraftFromExaminationBatch } from '../../utils/recurringConversion';
 
 const ExaminationBatchDetail: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id: routeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { calculateBatch, deleteBatch, approveBatch, generateInvoice, createBatch, schools, loadAllData, convertBatchToJobTicket } = useExamination();
   const { fetchFinanceData } = useFinance();
@@ -21,6 +21,9 @@ const ExaminationBatchDetail: React.FC = () => {
   const [isApproving, setIsApproving] = useState(false);
   const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
 
+  // Resolve actual batch ID from route (could be batch number or UUID)
+  const batchId = batch?.id || routeId;
+
   // Dialog States
   const [isAddClassOpen, setIsAddClassOpen] = useState(false);
   const [isManageSubjectsOpen, setIsManageSubjectsOpen] = useState(false);
@@ -29,15 +32,39 @@ const ExaminationBatchDetail: React.FC = () => {
   const canOverrideExamCost = checkPermission('examination.cost.override');
 
   const fetchBatch = async () => {
-    if (!id) return;
+    if (!routeId) return;
     try {
-      const data = await examinationBatchService.getBatch(id);
-      setBatch(data);
-      // If we have a selected class, update it with fresh data
-      if (selectedClass) {
-        const updatedClass = data.classes?.find(c => c.id === selectedClass.id);
-        if (updatedClass) {
-          setSelectedClass(updatedClass);
+      let data = null;
+      
+      // Try to fetch by ID (UUID) first
+      try {
+        data = await examinationBatchService.getBatch(routeId);
+      } catch (fetchError: any) {
+        // If fetch by ID fails (404), try to find by batch number
+        const is404 = fetchError?.status === 404 || 
+          (fetchError instanceof Error && fetchError.message.includes('not found'));
+        
+        if (is404) {
+          console.log('[DEBUG] ExaminationBatchDetail - Batch not found by ID, trying batch number lookup:', routeId);
+          const foundByNumber = await examinationBatchService.findBatchByNumber(routeId);
+          if (foundByNumber) {
+            console.log('[DEBUG] ExaminationBatchDetail - Found batch by number:', foundByNumber.id);
+            data = await examinationBatchService.getBatch(foundByNumber.id);
+          }
+        } else {
+          // Re-throw non-404 errors
+          throw fetchError;
+        }
+      }
+      
+      if (data) {
+        setBatch(data);
+        // If we have a selected class, update it with fresh data
+        if (selectedClass) {
+          const updatedClass = data.classes?.find(c => c.id === selectedClass.id);
+          if (updatedClass) {
+            setSelectedClass(updatedClass);
+          }
         }
       }
     } catch (error) {
@@ -53,7 +80,7 @@ const ExaminationBatchDetail: React.FC = () => {
     if (schools.length === 0) {
       loadAllData();
     }
-  }, [id]);
+  }, [routeId]);
 
 
   const handleApprove = async () => {
@@ -61,7 +88,7 @@ const ExaminationBatchDetail: React.FC = () => {
     if (!window.confirm('Are you sure you want to approve this batch? This will deduct inventory and lock the batch.')) return;
     setIsApproving(true);
     try {
-      const updatedBatch = await approveBatch(batch.id);
+      const updatedBatch = await approveBatch(batchId);
       setBatch(updatedBatch);
       alert('Batch approved successfully!');
     } catch (error) {
@@ -77,7 +104,7 @@ const ExaminationBatchDetail: React.FC = () => {
     if (!window.confirm('Generate invoice for this batch?')) return;
     setIsGeneratingInvoice(true);
     try {
-      const result = await generateInvoice(batch.id);
+      const result = await generateInvoice(batchId);
       await fetchBatch();
       await fetchFinanceData();
 
@@ -131,10 +158,10 @@ const ExaminationBatchDetail: React.FC = () => {
         term: batch.term,
         exam_type: batch.exam_type,
         type: 'Patch',
-        parent_batch_id: batch.id,
+        parent_batch_id: batchId,
       });
       const batchRef = String(newBatch.batch_number || newBatch.batchNumber || newBatch.id || '').trim();
-      navigate(`/examination/batches/${newBatch.id}`, { state: { name: batchRef } });
+      navigate(`/examination/batches/${encodeURIComponent(batchRef)}`, { state: { name: batchRef } });
     } catch (error) {
       console.error('Error creating patch:', error);
       alert('Failed to create patch.');
@@ -144,7 +171,7 @@ const ExaminationBatchDetail: React.FC = () => {
   const handleDelete = async () => {
     if (!batch || !window.confirm('Are you sure you want to delete this batch?')) return;
     try {
-      await deleteBatch(batch.id);
+      await deleteBatch(batchId);
       navigate('/examination/batches');
     } catch (error) {
       console.error('Error deleting batch:', error);
@@ -155,7 +182,7 @@ const ExaminationBatchDetail: React.FC = () => {
     if (!batch) return;
     if (!window.confirm('Recalculate this batch with current material prices and adjustments?')) return;
     try {
-      const updatedBatch = await examinationBatchService.recalculateBatch(batch.id);
+      const updatedBatch = await examinationBatchService.recalculateBatch(batchId);
       setBatch(updatedBatch);
       alert('Batch recalculated successfully!');
     } catch (error) {
@@ -188,14 +215,14 @@ const ExaminationBatchDetail: React.FC = () => {
       }
 
       console.log('[DEBUG] handleAddClass - Adding class to batch:', {
-        batchId: batch.id,
+        batchId: batchId,
         batchNumber: batch.batch_number || batch.batchNumber,
         batchName: batch.name,
         className: data.class_name,
         learnerCount: data.number_of_learners
       });
 
-      const createdClass = await examinationBatchService.addClass(batch.id, {
+      const createdClass = await examinationBatchService.addClass(batchId, {
         ...data,
         currency: batch.currency
       });
@@ -230,11 +257,11 @@ const ExaminationBatchDetail: React.FC = () => {
             
             ──────────────────────────────
             🔍 Debug Information:
-            • Batch ID: ${batch.id}
+            • Batch ID: ${batchId}
             • Batch Number: ${batch.batch_number || batch.batchNumber || 'N/A'}
             • Batch Name: ${batch.name}
             • Batch Status: ${batch.status}
-            • Is Local ID: ${String(batch.id).startsWith('local-') ? 'Yes' : 'No'}
+            • Is Local ID: ${String(batchId).startsWith('local-') ? 'Yes' : 'No'}
             
             Possible causes:
             1. Backend server not running
@@ -244,7 +271,7 @@ const ExaminationBatchDetail: React.FC = () => {
           `;
           
           console.error('[DEBUG] Batch not found error details:', {
-            batchId: batch.id,
+            batchId: batchId,
             batchNumber: batch.batch_number,
             errorMessage: error.message,
             stack: error.stack
@@ -271,7 +298,7 @@ const ExaminationBatchDetail: React.FC = () => {
       await examinationBatchService.addSubject(selectedClass.id, data);
       // Auto-recalculate to keep values synchronized, but do not fail the mutation if recalc fails.
       try {
-        const updatedBatch = await calculateBatch(batch.id);
+        const updatedBatch = await calculateBatch(batchId);
         setBatch(updatedBatch);
 
         if (updatedBatch && updatedBatch.classes) {
@@ -294,7 +321,7 @@ const ExaminationBatchDetail: React.FC = () => {
       await examinationBatchService.updateSubject(subjectId, data);
       // Auto-recalculate to keep values synchronized, but do not fail the mutation if recalc fails.
       try {
-        const updatedBatch = await calculateBatch(batch.id);
+        const updatedBatch = await calculateBatch(batchId);
         setBatch(updatedBatch);
 
         if (updatedBatch && updatedBatch.classes) {
@@ -317,7 +344,7 @@ const ExaminationBatchDetail: React.FC = () => {
       await examinationBatchService.deleteSubject(subjectId);
       // Auto-recalculate to keep values synchronized, but do not fail the mutation if recalc fails.
       try {
-        const updatedBatch = await calculateBatch(batch.id);
+        const updatedBatch = await calculateBatch(batchId);
         setBatch(updatedBatch);
 
         if (updatedBatch && updatedBatch.classes) {
@@ -636,7 +663,7 @@ const ExaminationBatchDetail: React.FC = () => {
     );
   }
 
-  const batchReference = String(batch.batch_number || batch.batchNumber || batch.id || '').trim();
+  const batchReference = String(batch.batch_number || batch.batchNumber || batchId || '').trim();
 
   return (
     <div className="h-full flex flex-col p-4 md:p-6 max-w-[1600px] mx-auto w-full font-normal overflow-y-auto custom-scrollbar">
@@ -753,7 +780,7 @@ const ExaminationBatchDetail: React.FC = () => {
               onClick={async () => {
                 if (window.confirm('Convert this batch to a Job Ticket for production?')) {
                   try {
-                    await convertBatchToJobTicket(batch.id);
+                    await convertBatchToJobTicket(batchId);
                     navigate('/sales-flow/job-tickets');
                   } catch (err) {
                     // Error handled in context

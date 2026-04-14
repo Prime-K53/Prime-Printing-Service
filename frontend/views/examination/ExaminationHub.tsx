@@ -83,7 +83,10 @@ const ExaminationHub: React.FC = () => {
     return null;
   };
 
-  const isCalculatedBatch = (batch: any) => String(batch?.status || '').toLowerCase() === 'calculated';
+  const isCalculatedBatch = (batch: any) => {
+    const status = String(batch?.status || '').toLowerCase();
+    return status === 'calculated' || status === 'approved' || status === 'invoiced';
+  };
 
   const getBatchClassCount = (batch: any) => {
     const rawCount = Number(
@@ -305,8 +308,9 @@ const ExaminationHub: React.FC = () => {
     if (target?.closest('button, input, a, [data-row-action="true"]')) {
       return;
     }
+    // Use batch_number for navigation URL (more readable than UUID)
     const batchRef = String(batch.batch_number || batch.batchNumber || batch.id || '').trim();
-    navigate(`/examination/batches/${batch.id}`, { state: { name: batchRef } });
+    navigate(`/examination/batches/${encodeURIComponent(batchRef)}`, { state: { name: batchRef } });
   };
 
   const handleBulkDelete = async () => {
@@ -716,7 +720,7 @@ const ExaminationHub: React.FC = () => {
                                   type="button"
                                   onClick={() => {
                                     const batchRef = String(batch.batch_number || batch.batchNumber || batch.id || '').trim();
-                                    navigate(`/examination/batches/${batch.id}`, { state: { name: batchRef } });
+                                    navigate(`/examination/batches/${encodeURIComponent(batchRef)}`, { state: { name: batchRef } });
                                   }}
                                   className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                                 >

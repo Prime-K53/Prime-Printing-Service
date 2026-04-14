@@ -642,6 +642,12 @@ export const examinationBatchService = {
           status: response.status,
           error: errorMsg
         });
+        // Create a specific error for 404 that can be identified
+        if (response.status === 404) {
+          const notFoundError = new Error(`Batch with ID ${id} not found`);
+          (notFoundError as any).status = 404;
+          throw notFoundError;
+        }
         throw new Error(errorMsg);
       }
       const data = await safeJson(response, 'getBatch');
@@ -1119,41 +1125,98 @@ export const examinationBatchService = {
       throw new Error('Number of learners must be greater than 0');
     }
 
-    // Fallback: if batch not found, try to find by batch number or re-create
+    // Enhanced fallback: if batch not found, try to find by batch number or re-create
     let actualBatchId = batchId;
-    if (!isLocalBatchId(batchId)) {
+    let batchNotFoundAttempts = 0;
+    const maxRetryAttempts = 2;
+
+    while (batchNotFoundAttempts <= maxRetryAttempts) {
       try {
-        const testResponse = await fetchWithTimeout(`/batches/${batchId}`, {
+        console.log(`[DEBUG] examinationBatchService.addClass - Attempt ${batchNotFoundAttempts + 1}/${maxRetryAttempts + 1}: Checking batch existence for ${actualBatchId}`);
+        
+        if (isLocalBatchId(actualBatchId)) {
+          // For local batches, verify they exist in local storage
+          const localBatches = await getLocalBatches();
+          const localBatch = localBatches.find(b => String(b.id) === String(actualBatchId));
+          if (!localBatch) {
+            throw new Error(`Local batch with ID ${actualBatchId} not found`);
+          }
+          console.log('[DEBUG] examinationBatchService.addClass - Local batch found, proceeding with local ID');
+          break;
+        }
+
+        // Test if batch exists in backend
+        const testResponse = await fetchWithTimeout(`/batches/${actualBatchId}`, {
           headers: getHeaders()
         }, 5000);
-        if (!testResponse.ok && testResponse.status === 404) {
-          const localBatch = (await getLocalBatches()).find(b => String(b.id) === String(batchId));
+        
+        if (testResponse.ok) {
+          console.log(`[DEBUG] examinationBatchService.addClass - Batch ${actualBatchId} exists in backend`);
+          break;
+        }
+
+        // Handle 404 responses
+        if (testResponse.status === 404) {
+          batchNotFoundAttempts++;
+          console.log(`[DEBUG] examinationBatchService.addClass - Batch ${actualBatchId} not found (404), attempt ${batchNotFoundAttempts}/${maxRetryAttempts + 1}`);
+          
+          if (batchNotFoundAttempts > maxRetryAttempts) {
+            throw new Error(`Batch with ID ${actualBatchId} not found after ${maxRetryAttempts + 1} attempts`);
+          }
+
+          // Try batch number lookup
+          const localBatches = await getLocalBatches();
+          const localBatch = localBatches.find(b => String(b.id) === String(batchId));
+          
           if (localBatch?.batch_number) {
-            console.log('[DEBUG] examinationBatchService.addClass - Batch ID not found, trying batch number lookup:', { batchId, batchNumber: localBatch.batch_number });
+            console.log('[DEBUG] examinationBatchService.addClass - Trying batch number lookup:', { batchId, batchNumber: localBatch.batch_number });
             const foundByNumber = await this.getBatchByNumber(localBatch.batch_number);
+            
             if (foundByNumber?.id) {
               actualBatchId = String(foundByNumber.id);
               console.log('[DEBUG] examinationBatchService.addClass - Found batch by number:', { oldBatchId: batchId, newBatchId: actualBatchId });
+              continue; // Retry with new batch ID
             } else {
-              console.log('[DEBUG] examinationBatchService.addClass - Batch not in backend either, attempting to re-create:', { batchId, batchNumber: localBatch.batch_number });
-              try {
-                const recreated = await this.createBatch({
-                  ...localBatch,
-                  batch_number: localBatch.batch_number,
-                  status: localBatch.status || 'Draft'
-                });
-                actualBatchId = String(recreated.id);
-                console.log('[DEBUG] examinationBatchService.addClass - Re-created batch:', { oldBatchId: batchId, newBatchId: actualBatchId });
-              } catch (recreateError) {
-                console.error('[DEBUG] examinationBatchService.addClass - Failed to re-create batch:', recreateError);
-              }
+              console.log('[DEBUG] examinationBatchService.addClass - Batch not in backend, attempting to re-create:', { batchId, batchNumber: localBatch.batch_number });
+              
+              // Recreate batch
+              const recreated = await this.createBatch({
+                ...localBatch,
+                batch_number: localBatch.batch_number,
+                status: localBatch.status || 'Draft'
+              });
+              
+              actualBatchId = String(recreated.id);
+              console.log('[DEBUG] examinationBatchService.addClass - Re-created batch, retrying with new ID:', { oldBatchId: batchId, newBatchId: actualBatchId });
+              
+              // Wait a moment for batch to be available in backend
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              continue; // Retry with recreated batch ID
             }
+          } else {
+            throw new Error(`Batch with ID ${batchId} not found and no batch number available for lookup`);
           }
         }
-      } catch {}
+
+        // Handle other non-200 responses
+        throw new Error(`Unexpected response when checking batch existence: ${testResponse.status}`);
+        
+      } catch (error) {
+        batchNotFoundAttempts++;
+        console.error(`[DEBUG] examinationBatchService.addClass - Error checking batch ${actualBatchId}:`, error);
+        
+        if (batchNotFoundAttempts > maxRetryAttempts) {
+          // Last attempt failed, throw comprehensive error
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          throw new Error(`Failed to add class: Could not find or create batch with ID ${batchId}. ${errorMessage}`);
+        }
+        
+        // Continue to next attempt
+        continue;
+      }
     }
 
-    console.log('[DEBUG] examinationBatchService.addClass - Request details:', {
+    console.log('[DEBUG] examinationBatchService.addClass - Final request details:', {
       batchId: actualBatchId,
       originalBatchId: batchId,
       className: payload.class_name,
@@ -1178,6 +1241,12 @@ export const examinationBatchService = {
         originalBatchId: batchId,
         isLocalBatch: isLocalBatchId(actualBatchId)
       });
+      
+      // Provide more specific error for FK constraint violations
+      if (errorText.includes('may not exist (FK constraint)')) {
+        throw new Error(`Batch with ID ${actualBatchId} does not exist in the database. Please verify the batch ID and try again.`);
+      }
+      
       throw new Error(errorText);
     }
     
