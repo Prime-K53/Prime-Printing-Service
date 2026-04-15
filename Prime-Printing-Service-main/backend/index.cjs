@@ -251,7 +251,7 @@ app.use(auditContextMiddleware);
 app.use('/api/auth', auditAuthMiddleware);
 
 // CORS configuration: allow common custom headers used by the frontend
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'https://primeprintingservice.netlify.app').split(',').map(s => s.trim()).filter(Boolean);
 const exposedDocumentHeaders = [
   'x-correlation-id',
   'Content-Disposition',
